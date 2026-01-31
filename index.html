@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Proton Bus Mods - Rəsul</title>
+    <style>
+        body { margin:0; font-family: 'Segoe UI', sans-serif; background:#0f172a; color:#fff; }
+        header { background:#1e293b; padding:20px; text-align:center; border-bottom: 3px solid #2563eb; }
+        nav { background: #1e293b; text-align: center; padding: 10px; border-bottom: 1px solid #334155; }
+        nav button { background: #334155; color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; margin: 5px; font-weight: 600; }
+        
+        .search-container { max-width: 600px; margin: 20px auto; padding: 0 20px; }
+        #searchInput { width: 100%; padding: 15px; border-radius: 12px; border: 1px solid #334155; background: #1e293b; color: white; font-size: 16px; outline: none; }
+        #searchInput:focus { border-color: #2563eb; }
+
+        .container { padding:20px; display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:25px; }
+        .card { background:#1e293b; border-radius:15px; border: 1px solid #334155; text-align:center; overflow: hidden; transition: 0.3s; position: relative; }
+        .card:hover { border-color: #2563eb; transform: translateY(-5px); }
+        .card img { width: 100%; height: 180px; object-fit: cover; }
+        
+        .badge { position: absolute; top: 10px; right: 10px; padding: 5px 12px; border-radius: 20px; font-size: 11px; font-weight: bold; z-index: 10; }
+        .badge-free { background: #22c55e; color: white; }
+        .badge-paid { background: #e11d48; color: white; }
+
+        .card-info { padding: 15px; }
+        .price { color:#22c55e; font-size:22px; font-weight:bold; margin: 10px 0; display: block; }
+        
+        #payment-modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; justify-content: center; align-items: center; }
+        .modal-content { background: #1e293b; padding: 25px; border-radius: 20px; width: 90%; max-width: 400px; border: 1px solid #2563eb; text-align: center; }
+        
+        button { width:100%; padding:14px; margin:8px 0; border-radius:10px; border:none; font-weight:bold; cursor:pointer; background:#2563eb; color:white; font-size: 16px; }
+        .free-btn { background: #22c55e !important; }
+
+        #admin-panel { display:none; max-width:600px; margin:20px auto; padding:20px; background:#1e293b; border-radius:15px; border: 1px solid #e11d48; }
+        input, select { width:100%; padding:12px; margin:8px 0; border-radius:8px; border:1px solid #334155; background:#0f172a; color:white; box-sizing: border-box; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🚌 Proton Bus Mod Al</h1>
+</header>
+
+<nav>
+    <button onclick="showPage('home')">🏠 Mağaza</button>
+    <button onclick="loginAdmin()" style="background: #e11d48;">🔐 Admin Giriş</button>
+</nav>
+
+<div id="home-page">
+    <div class="search-container">
+        <input type="text" id="searchInput" placeholder="Avtobus və ya mod adı axtar..." onkeyup="filterMods()">
+    </div>
+    <div class="container" id="mod-container"></div>
+</div>
+
+<div id="payment-modal">
+    <div class="modal-content">
+        <h3 id="pay-mod-name">Mod Ödənişi</h3>
+        <div style="background: #0f172a; padding: 15px; border-radius: 12px; border: 2px dashed #2563eb; margin: 15px 0;">
+            <small style="color: #94a3b8;">Kart Sahibi:</small><br>
+            <strong style="font-size: 20px; color: #fff;">Rəsul</strong><br><br>
+            <small style="color: #94a3b8;">Kart Nömrəsi:</small><br>
+            <strong id="cardNum" style="font-size: 17px; letter-spacing: 1px;">4098 5844 9296 1964</strong>
+        </div>
+        <p id="pay-price-info" style="color:#22c55e; font-size: 20px; font-weight:bold;"></p>
+        <button onclick="sendToWhatsApp()" style="background:#16a34a;">💬 WhatsApp ilə Qəbzi Göndər</button>
+        <button onclick="closeModal()" style="background:#475569;">Geri</button>
+    </div>
+</div>
+
+<div id="admin-panel">
+    <h3 style="text-align:center;">➕ Yeni Avtobus Modu</h3>
+    <input type="text" id="mName" placeholder="Modun adı (məs: Mercedes Travego)">
+    <input type="text" id="mImg" placeholder="Avtobus şəkli (URL)">
+    <input type="text" id="mLink" placeholder="Modun yükləmə linki">
+    <select id="mType" onchange="togglePriceInput()">
+        <option value="pullu">Pullu (Ödənişli)</option>
+        <option value="pulsuz">Pulsuz (Hədiyyə)</option>
+    </select>
+    <div id="price-div"><input type="number" id="mPrice" placeholder="Qiyməti (AZN)"></div>
+    <button onclick="addMod()" style="background:#22c55e;">Marketə Əlavə Et</button>
+</div>
+
+<script>
+    let mods = JSON.parse(localStorage.getItem('myMods')) || [];
+    let selectedMod = null;
+    const myWhatsApp = "994516780302"; 
+
+    function togglePriceInput() {
+        const type = document.getElementById('mType').value;
+        document.getElementById('price-div').style.display = (type === 'pulsuz' ? 'none' : 'block');
+    }
+
+    function loginAdmin() {
+        let user = prompt("İstifadəçi adı:");
+        let pass = prompt("Şifrə:");
+        if(user === "Admin" && pass === "resulsenan123") showPage('admin');
+        else alert("Səhv giriş!");
+    }
+
+    function showPage(page) {
+        document.getElementById('home-page').style.display = (page === 'home' ? 'block' : 'none');
+        document.getElementById('admin-panel').style.display = (page === 'admin' ? 'block' : 'none');
+        if(page === 'home') renderMods(mods);
+    }
+
+    function addMod() {
+        const name = document.getElementById('mName').value;
+        const img = document.getElementById('mImg').value || 'https://via.placeholder.com/300x180?text=ProtonBus';
+        const link = document.getElementById('mLink').value;
+        const type = document.getElementById('mType').value;
+        const price = type === 'pulsuz' ? 0 : document.getElementById('mPrice').value;
+        
+        if(name && link) {
+            mods.push({name, price, img, link, type});
+            localStorage.setItem('myMods', JSON.stringify(mods));
+            alert("Yeni mod bazaya əlavə olundu!");
+            showPage('home');
+        } else {
+            alert("Məlumatları tam doldurun!");
+        }
+    }
+
+    function filterMods() {
+        const term = document.getElementById('searchInput').value.toLowerCase();
+        const filtered = mods.filter(m => m.name.toLowerCase().includes(term));
+        renderMods(filtered);
+    }
+
+    function renderMods(data) {
+        const container = document.getElementById('mod-container');
+        container.innerHTML = data.map(m => `
+            <div class="card">
+                <span class="badge ${m.type === 'pulsuz' ? 'badge-free' : 'badge-paid'}">${m.type.toUpperCase()}</span>
+                <img src="${m.img}">
+                <div class="card-info">
+                    <h3>${m.name}</h3>
+                    <span class="price">${m.type === 'pulsuz' ? 'ÖDƏNİŞSİZ' : m.price + ' AZN'}</span>
+                    ${m.type === 'pulsuz' ? `<button class="free-btn" onclick="window.open('${m.link}', '_blank')">📥 İndi Yüklə</button>` : `<button onclick="openModal('${m.name}', ${m.price})">🛒 Satın Al</button>`}
+                </div>
+            </div>
+        `).join('') || '<p style="text-align:center; grid-column: 1/-1;">Bu adda mod tapılmadı.</p>';
+    }
+
+    function openModal(name, price) {
+        selectedMod = {name, price};
+        document.getElementById('pay-mod-name').innerText = name;
+        document.getElementById('pay-price-info').innerText = "Məbləğ: " + price + " AZN";
+        document.getElementById('payment-modal').style.display = 'flex';
+    }
+
+    function sendToWhatsApp() {
+        const text = `Salam Rəsul, mən "${selectedMod.name}" modunu almaq üçün ${selectedMod.price} AZN ödədim. Budur qəbz:`;
+        window.open(`https://wa.me/${myWhatsApp}?text=${encodeURIComponent(text)}`, '_blank');
+    }
+
+    function closeModal() { document.getElementById('payment-modal').style.display = 'none'; }
+    renderMods(mods);
+</script>
+</body>
+</html>
